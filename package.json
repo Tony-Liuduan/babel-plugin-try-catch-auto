@@ -1,0 +1,23 @@
+{
+  "name": "babel-plugin-try-catch-auto",
+  "version": "1.0.0",
+  "description": "auto wrap try catch for function body",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tony-Liuduan/babel-plugin-try-catch-auto.git"
+  },
+  "keywords": [
+    "babel-plugin",
+    "try-catch"
+  ],
+  "author": "liuduan",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Tony-Liuduan/babel-plugin-try-catch-auto/issues"
+  },
+  "homepage": "https://github.com/Tony-Liuduan/babel-plugin-try-catch-auto#readme"
+}
