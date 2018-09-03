@@ -1,27 +1,31 @@
-const handleFuncBody = (path, _ref = { opts: {} }) => {
-    let funcBody = path.node.body.body
+const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn) => {
+    
     const funcId = path.node.id
     const funcLoc = path.node.loc
-    let flag = false
+    let funcBody = path.node.body.body
+    let isReturnBody = false
 
-    if (!funcBody) {
-        flag = true
-        funcBody = path.node.body
-    }
 
+    // 过滤 
     if (funcBody && funcBody.length === 0) {
         return
     }
-
+   
     if (!funcLoc) {
         return
     }
 
-    const funcName = funcId ? funcId.name : 'anonymous function'
+    if (!funcBody) {
+        isReturnBody = true
+        funcBody = path.node.body
+    }
+
+    
+    // 记录 ast 上的重要信息
+    const funcName = funcId ? funcId.name : 'anonymous'
     const funcLine = funcLoc.start.line
     const funcErrorVariable = path.scope.generateUidIdentifier('e')
-
-    const astTemplate = flag ? wrapCaptureWithReturn : wrapCapture
+    const astTemplate = isReturnBody ? wrapCaptureWithReturn : wrapCapture
 
     const ast = astTemplate({
         FUNC_BODY: funcBody,
@@ -65,96 +69,18 @@ module.exports = function (babel) {
         visitor: {
             FunctionDeclaration(path, _ref = { opts: {} }) {
 
-                const funcBody = path.node.body.body
-                const funcId = path.node.id
-                const funcLoc = path.node.loc
+                handleFuncBody(path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn)
 
-                if (funcBody.length === 0) {
-                    return
-                }
-
-                if (!funcLoc) {
-                    return
-                }
-
-                const funcName = funcId ? funcId.name : 'anonymous function'
-                const funcLine = funcLoc.start.line
-                const funcErrorVariable = path.scope.generateUidIdentifier('e')
-
-
-                const ast = wrapCapture({
-                    FUNC_BODY: funcBody,
-                    FUNC_NAME: t.StringLiteral(funcName),
-                    FUNC_LINE: t.NumericLiteral(funcLine),
-                    ERROR_VARIABLE: funcErrorVariable
-                })
-
-                path.get('body').replaceWith(ast)
             },
-            ArrowFunctionExpression(path) {
-                let funcBody = path.node.body.body
-                const funcId = path.node.id
-                const funcLoc = path.node.loc
-                let flag = false
+            ArrowFunctionExpression(path, _ref = { opts: {} }) {
 
-                if (!funcBody) {
-                    flag = true
-                    funcBody = path.node.body
-                }
+                handleFuncBody(path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn)
 
-                if (funcBody && funcBody.length === 0) {
-                    return
-                }
-
-                if (!funcLoc) {
-                    return
-                }
-
-                const funcName = funcId ? funcId.name : 'anonymous function'
-                const funcLine = funcLoc.start.line
-                const funcErrorVariable = path.scope.generateUidIdentifier('e')
-
-                const astTemplate = flag ? wrapCaptureWithReturn : wrapCapture
-
-                const ast = astTemplate({
-                    FUNC_BODY: funcBody,
-                    FUNC_NAME: t.StringLiteral(funcName),
-                    FUNC_LINE: t.NumericLiteral(funcLine),
-                    ERROR_VARIABLE: funcErrorVariable
-                })
-
-                path.get('body').replaceWith(ast)
             },
-            FunctionExpression(path) {
-                const funcBody = path.node.body.body
+            FunctionExpression(path, _ref = { opts: {} }) {
 
-                const funcId = path.node.id
-                const funcLoc = path.node.loc
-
-                if (!funcBody) {
-                    return
-                }
-
-                if (funcBody.length === 0) {
-                    return
-                }
-
-                if (!funcLoc) {
-                    return
-                }
-
-                const funcName = funcId ? funcId.name : 'anonymous function'
-                const funcLine = funcLoc.start.line
-                const funcErrorVariable = path.scope.generateUidIdentifier('e')
-
-                const ast = wrapCapture({
-                    FUNC_BODY: funcBody,
-                    FUNC_NAME: t.StringLiteral(funcName),
-                    FUNC_LINE: t.NumericLiteral(funcLine),
-                    ERROR_VARIABLE: funcErrorVariable
-                })
-
-                path.get('body').replaceWith(ast)
+                handleFuncBody(path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn)
+                
             }
         }
     }
