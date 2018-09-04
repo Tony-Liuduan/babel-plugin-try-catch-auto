@@ -1,6 +1,6 @@
 const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn) => {
 
-    const funcId = path.node.id
+    const funcId = path.node.id || path.node.key
     const funcLoc = path.node.loc
     let funcBody = path.node.body.body
     let isReturnBody = false
@@ -19,7 +19,6 @@ const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWi
         isReturnBody = true
         funcBody = path.node.body
     }
-
 
     // 记录 ast 上的重要信息
     const funcName = funcId ? funcId.name : 'anonymous'
@@ -40,14 +39,19 @@ const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWi
 const catchTemplate = `
         console.log('+++++++++++++++++++++')
         console.log(ERROR_VARIABLE)
-        window.JSTracker && window.JSTracker.catch({
-            message: ERROR_VARIABLE.message,
-            stack: ERROR_VARIABLE.stack.toString(),
-            funcLine: FUNC_LINE,
-            funcName: FUNC_NAME
-        }, 'try-catch')
+        try {
+            window.JSTracker && window.JSTracker.catch({
+                message: ERROR_VARIABLE.message,
+                stack: ERROR_VARIABLE.stack.toString(),
+                funcLine: FUNC_LINE,
+                funcName: FUNC_NAME
+            }, 'try-catch')
+        } catch (trackerError) {
+            console.log('JSTrackerError: ', trackerError);
+        }
         console.log('+++++++++++++++++++++')
     `
+
 
 module.exports = function (babel) {
 
@@ -85,6 +89,34 @@ module.exports = function (babel) {
 
                 handleFuncBody(path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn)
 
+            },
+            ClassDeclaration(path, _ref = { opts: {} }) {
+
+                let bodyPaths = path.get('body').get('body')
+
+                if (!bodyPaths) {
+                    return
+                }
+
+                if (bodyPaths.length === 0) {
+                    return
+                }
+
+                bodyPaths.forEach(bodyPath => {
+
+                    const { type, key } = bodyPath.node || {}
+
+                    // 只捕获方法中的错误，属性错误不处理
+                    if (type !== 'ClassMethod') return
+
+                    if (!key) return
+
+                    // 防止报错，使用 react-catch 捕获render中的错误
+                    if (key.name === 'render') return
+
+                    handleFuncBody(bodyPath, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn)
+
+                });
             }
         }
     }
