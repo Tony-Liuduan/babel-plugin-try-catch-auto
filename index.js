@@ -1,5 +1,5 @@
 const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn) => {
-    
+
     const funcId = path.node.id
     const funcLoc = path.node.loc
     let funcBody = path.node.body.body
@@ -10,7 +10,7 @@ const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWi
     if (funcBody && funcBody.length === 0) {
         return
     }
-   
+
     if (!funcLoc) {
         return
     }
@@ -20,7 +20,7 @@ const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWi
         funcBody = path.node.body
     }
 
-    
+
     // 记录 ast 上的重要信息
     const funcName = funcId ? funcId.name : 'anonymous'
     const funcLine = funcLoc.start.line
@@ -37,6 +37,18 @@ const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWi
     path.get('body').replaceWith(ast)
 }
 
+const catchTemplate = `
+        console.log('+++++++++++++++++++++')
+        console.log(ERROR_VARIABLE)
+        window.JSTracker && window.JSTracker.catch({
+            message: ERROR_VARIABLE.message,
+            stack: ERROR_VARIABLE.stack.toString(),
+            funcLine: FUNC_LINE,
+            funcName: FUNC_NAME
+        }, 'try-catch')
+        console.log('+++++++++++++++++++++')
+    `
+
 module.exports = function (babel) {
 
     const t = babel.types
@@ -45,12 +57,7 @@ module.exports = function (babel) {
         try {
             FUNC_BODY
         } catch (ERROR_VARIABLE) {
-            console.log('+++++++++++++++++++++')
-            console.log(ERROR_VARIABLE)
-            console.log(FUNC_NAME)
-            console.log(FUNC_LINE)
-            console.log(window.location.href)
-            console.log('+++++++++++++++++++++')
+            ${catchTemplate}
         }
     }`)
 
@@ -58,12 +65,7 @@ module.exports = function (babel) {
         try {
             return FUNC_BODY
         } catch (ERROR_VARIABLE) {
-            console.log('+++++++++++++++++++++')
-            console.log(ERROR_VARIABLE)
-            console.log(FUNC_NAME)
-            console.log(FUNC_LINE)
-            console.log(window.location.href)
-            console.log('+++++++++++++++++++++')
+            ${catchTemplate}
         }
     }`)
 
@@ -82,7 +84,7 @@ module.exports = function (babel) {
             FunctionExpression(path, _ref = { opts: {} }) {
 
                 handleFuncBody(path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn)
-                
+
             }
         }
     }
