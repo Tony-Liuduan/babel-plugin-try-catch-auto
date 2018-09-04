@@ -49,6 +49,7 @@ module.exports = function (babel) {
             console.log(ERROR_VARIABLE)
             console.log(FUNC_NAME)
             console.log(FUNC_LINE)
+            console.log(window.location.href)
             console.log('+++++++++++++++++++++')
         }
     }`)
@@ -61,6 +62,7 @@ module.exports = function (babel) {
             console.log(ERROR_VARIABLE)
             console.log(FUNC_NAME)
             console.log(FUNC_LINE)
+            console.log(window.location.href)
             console.log('+++++++++++++++++++++')
         }
     }`)
