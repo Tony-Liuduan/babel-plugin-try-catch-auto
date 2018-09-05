@@ -37,8 +37,6 @@ const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWi
 }
 
 const catchTemplate = `
-        console.log('+++++++++++++++++++++')
-        console.log(ERROR_VARIABLE)
         try {
             window.JSTracker && window.JSTracker.catch({
                 message: ERROR_VARIABLE.message,
@@ -47,10 +45,9 @@ const catchTemplate = `
                 funcName: FUNC_NAME
             }, 'try-catch')
         } catch (trackerError) {
-            console.log('JSTrackerError: ', trackerError);
+            console.log(trackerError)
         }
         throw ERROR_VARIABLE
-        console.log('+++++++++++++++++++++')
     `
 
 
