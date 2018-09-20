@@ -47,7 +47,6 @@ const catchTemplate = `
         } catch (trackerError) {
             console.log(trackerError)
         }
-        throw ERROR_VARIABLE
     `
 
 
