@@ -39,13 +39,11 @@ const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWi
 const catchTemplate = `
         try {
             window.JSTracker && window.JSTracker.catch({
-                message: ERROR_VARIABLE.message,
-                stack: ERROR_VARIABLE.stack.toString(),
+                error: ERROR_VARIABLE,
                 funcLine: FUNC_LINE,
                 funcName: FUNC_NAME
             }, 'try-catch')
         } catch (trackerError) {
-            console.log(trackerError)
         }
     `
 
@@ -62,6 +60,15 @@ module.exports = function (babel) {
         }
     }`)
 
+    const wrapCaptureWithThrow = babel.template(`{
+        try {
+            FUNC_BODY
+        } catch (ERROR_VARIABLE) {
+            ${catchTemplate}
+            throw ERROR_VARIABLE
+        }
+    }`)
+
     const wrapCaptureWithReturn = babel.template(`{
         try {
             return FUNC_BODY
@@ -70,21 +77,57 @@ module.exports = function (babel) {
         }
     }`)
 
+    const wrapCaptureWithReturnWithThrow = babel.template(`{
+        try {
+            return FUNC_BODY
+        } catch (ERROR_VARIABLE) {
+            ${catchTemplate}
+            throw ERROR_VARIABLE
+        }
+    }`)
+
     return {
         visitor: {
             FunctionDeclaration(path, _ref = { opts: {} }) {
+                const { throwError } = _ref.opts
 
-                handleFuncBody(path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn)
+                let capture = wrapCaptureWithThrow
+                let captureWithReturn = wrapCaptureWithReturnWithThrow
+
+                if (throwError === false) {
+                    capture = wrapCapture
+                    captureWithReturn = wrapCaptureWithReturn
+                }
+
+                handleFuncBody(path, _ref = { opts: {} }, t, capture, captureWithReturn)
 
             },
             ArrowFunctionExpression(path, _ref = { opts: {} }) {
+                const { throwError } = _ref.opts
 
-                handleFuncBody(path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn)
+                let capture = wrapCaptureWithThrow
+                let captureWithReturn = wrapCaptureWithReturnWithThrow
+
+                if (throwError === false) {
+                    capture = wrapCapture
+                    captureWithReturn = wrapCaptureWithReturn
+                }
+
+                handleFuncBody(path, _ref = { opts: {} }, t, capture, captureWithReturn)
 
             },
             FunctionExpression(path, _ref = { opts: {} }) {
+                const { throwError } = _ref.opts
 
-                handleFuncBody(path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn)
+                let capture = wrapCaptureWithThrow
+                let captureWithReturn = wrapCaptureWithReturnWithThrow
+
+                if (throwError === false) {
+                    capture = wrapCapture
+                    captureWithReturn = wrapCaptureWithReturn
+                }
+
+                handleFuncBody(path, _ref = { opts: {} }, t, capture, captureWithReturn)
 
             },
             ClassDeclaration(path, _ref = { opts: {} }) {
@@ -99,6 +142,16 @@ module.exports = function (babel) {
                     return
                 }
 
+                const { throwError } = _ref.opts
+
+                let capture = wrapCaptureWithThrow
+                let captureWithReturn = wrapCaptureWithReturnWithThrow
+
+                if (throwError === false) {
+                    capture = wrapCapture
+                    captureWithReturn = wrapCaptureWithReturn
+                }
+
                 bodyPaths.forEach(bodyPath => {
 
                     const { type, key } = bodyPath.node || {}
@@ -111,7 +164,7 @@ module.exports = function (babel) {
                     // 防止报错，使用 react-catch 捕获render中的错误
                     if (key.name === 'render') return
 
-                    handleFuncBody(bodyPath, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn)
+                    handleFuncBody(bodyPath, _ref = { opts: {} }, t, capture, captureWithReturn)
 
                 });
             }
