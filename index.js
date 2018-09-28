@@ -1,6 +1,6 @@
 const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWithReturn) => {
 
-    const funcId = path.node.id || path.node.key
+    // const funcId = path.node.id || path.node.key
     const funcLoc = path.node.loc
     let funcBody = path.node.body.body
     let isReturnBody = false
@@ -21,15 +21,14 @@ const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWi
     }
 
     // 记录 ast 上的重要信息
-    const funcName = funcId ? funcId.name : 'anonymous'
-    const funcLine = funcLoc.start.line
     const funcErrorVariable = path.scope.generateUidIdentifier('e')
+    // const funcName = t.StringLiteral(funcId ? funcId.name : 'anonymous')
+    // const funcLine = t.NumericLiteral(funcLoc.start.line)
+
     const astTemplate = isReturnBody ? wrapCaptureWithReturn : wrapCapture
 
     const ast = astTemplate({
         FUNC_BODY: funcBody,
-        FUNC_NAME: t.StringLiteral(funcName),
-        FUNC_LINE: t.NumericLiteral(funcLine),
         ERROR_VARIABLE: funcErrorVariable
     })
 
@@ -37,15 +36,11 @@ const handleFuncBody = (path, _ref = { opts: {} }, t, wrapCapture, wrapCaptureWi
 }
 
 const catchTemplate = `
-        try {
-            window.JSTracker && window.JSTracker.catch({
-                error: ERROR_VARIABLE,
-                funcLine: FUNC_LINE,
-                funcName: FUNC_NAME
-            }, 'try-catch')
-        } catch (trackerError) {
-        }
-    `
+    try { 
+        window.JSTracker.catch(ERROR_VARIABLE)
+    } catch (e) {
+    }
+`
 
 
 module.exports = function (babel) {
