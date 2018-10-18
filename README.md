@@ -2,7 +2,7 @@
 
 * 作者：liuduan
 * 邮箱：liuduan.05.05@163.com
-* 版本：**`2.4.0`**
+* 版本：**`2.4.1`**
 
 ## 介绍
 
@@ -91,5 +91,9 @@ cnpm i -D babel-plugin-try-catch-auto
 ### 2.4.0
 1. 优化`catch`上报参数
 2. 增加`throwError`参数配置
+
+### 2.4.1
+1. 替换函数节点为Function
+
 
 ---

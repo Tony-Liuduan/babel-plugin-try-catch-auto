@@ -83,35 +83,7 @@ module.exports = function (babel) {
 
     return {
         visitor: {
-            FunctionDeclaration(path, _ref = { opts: {} }) {
-                const { throwError } = _ref.opts
-
-                let capture = wrapCaptureWithThrow
-                let captureWithReturn = wrapCaptureWithReturnWithThrow
-
-                if (throwError === false) {
-                    capture = wrapCapture
-                    captureWithReturn = wrapCaptureWithReturn
-                }
-
-                handleFuncBody(path, _ref = { opts: {} }, t, capture, captureWithReturn)
-
-            },
-            ArrowFunctionExpression(path, _ref = { opts: {} }) {
-                const { throwError } = _ref.opts
-
-                let capture = wrapCaptureWithThrow
-                let captureWithReturn = wrapCaptureWithReturnWithThrow
-
-                if (throwError === false) {
-                    capture = wrapCapture
-                    captureWithReturn = wrapCaptureWithReturn
-                }
-
-                handleFuncBody(path, _ref = { opts: {} }, t, capture, captureWithReturn)
-
-            },
-            FunctionExpression(path, _ref = { opts: {} }) {
+            Function(path, _ref = { opts: {} }) {
                 const { throwError } = _ref.opts
 
                 let capture = wrapCaptureWithThrow
