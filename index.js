@@ -79,18 +79,28 @@ module.exports = function (babel) {
 
                 bodyPaths.forEach(bodyPath => {
 
-                    const { type, key } = bodyPath.node || {}
+                    if (!bodyPath) return;
 
-                    if (['ClassMethod', 'ClassProperty'].indexOf(type) === -1) return;
+                    const bodyNode = bodyPath.node;
 
-                    let funcname = key && key.name;
+                    if (!bodyNode) return;
+
+                    const bodyType = bodyNode.type;
+                    const bodyKey = bodyNode.key;
+
+                    if (['ClassMethod', 'ClassProperty'].indexOf(bodyType) === -1) return;
+
+                    let funcname = bodyKey && bodyKey.name;
 
                     if (!funcname) return;
 
-                    if (type === 'ClassProperty') {
+                    if (bodyType === 'ClassProperty') {
+
                         bodyPath = bodyPath.get('value');
 
                         if (!bodyPath) return;
+
+                        if (!bodyPath.node) return;
 
                         if (!isFuncTypeNode(bodyPath.node.type)) return;
                     }
@@ -124,9 +134,15 @@ module.exports = function (babel) {
 
             // setState 中的错误捕获
             CallExpression(path, _ref = { opts: {} }) {
+
+                if (!path.node) return;
+                if (!path.node.callee) return;
+
                 const calleeProp = path.node.callee.property;
 
                 if (!calleeProp) return;
+
+                if (!path.parent) return;
 
                 if ((['setState'].indexOf(calleeProp.name) > -1 && path.parent.type === 'ExpressionStatement')) {
 
@@ -138,6 +154,9 @@ module.exports = function (babel) {
                     if (!l) return;
 
                     const funcPath = args[l - 1];
+
+                    if (!funcPath) return;
+                    if (!funcPath.node) return;
 
                     const funcType = funcPath.node.type;
 
@@ -161,6 +180,8 @@ module.exports = function (babel) {
 
                 const childNode = childPath.node;
 
+                if (!childNode) return;
+
                 if (!isFuncTypeNode(childNode.type)) return;
 
                 replaceFuncBody(childPath, astFunc(_ref.opts));
@@ -178,6 +199,8 @@ module.exports = function (babel) {
                 if (!childPath) return;
 
                 const childNode = childPath.node;
+
+                if (!childNode) return;
 
                 if (!isFuncTypeNode(childNode.type)) return;
 
@@ -198,12 +221,14 @@ module.exports = function (babel) {
 
             // 变量定义方法
             VariableDeclarator(path, _ref = { opts: {} }) {
-                const { parent, node } = path;
+                const { parent } = path;
 
                 if (!parent) return;
                 if (parent.type !== 'VariableDeclaration') return;
 
                 const childPath = path.get('init');
+
+                if (!childPath) return;
 
                 const childNode = childPath.node;
 
@@ -256,7 +281,6 @@ module.exports = function (babel) {
                 if (!sunPath) return;
 
                 const sunNode = sunPath.node;
-
                 if (!sunNode) return;
 
                 // addEventListener
@@ -285,16 +309,19 @@ function checkAsyncName(params) {
 
 function checkAsyncProp(params) {
     if (!params) return false;
-    return ['requestAnimationFrame', 'catch', 'then'].indexOf(params) > -1
+    return ['requestAnimationFrame', 'then'].indexOf(params) > -1
 }
 
 function replaceFuncBody(path, { capture, captureWithReturn }) {
     const node = path.node;
-    let funcBody = node.body.body
-    let astTemplate = capture
+    if (!node) return;
+
+    let funcBody = node.body.body;
+    let astTemplate = capture;
 
     if (!funcBody) {
         funcBody = node.body;
+        if (!funcBody) return;
         if (isBaseTypeNode(funcBody.type)) return;
 
         astTemplate = captureWithReturn;
@@ -304,13 +331,16 @@ function replaceFuncBody(path, { capture, captureWithReturn }) {
 
         // 检测若果如果第一个是try 就不再包裹
         const firstNode = funcBody[0];
-        if (firstNode.type === 'TryStatement') return;
+        if (firstNode && firstNode.type === 'TryStatement') return;
+
+        const secondNode = funcBody[1];
+        if (secondNode && secondNode.type === 'TryStatement') return;
 
         let stopFlag = true;
         // todo:查看是否方法体中都是方法类型，如果是就不再try catch
         for (let i = 0; i < len; i++) {
             const currentNode = funcBody[i];
-            if (!isFuncTypeNode(currentNode.type)) {
+            if (currentNode && (!isFuncTypeNode(currentNode.type) && currentNode.type !== 'TryStatement')) {
                 stopFlag = false;
                 break;
             }
@@ -322,15 +352,16 @@ function replaceFuncBody(path, { capture, captureWithReturn }) {
     const funcErrorVariable = path.scope.generateUidIdentifier('e');
 
 
-    const funcId = node.id || node.key;
-    const funcLoc = node.loc;
-
+    let funcId = node.id || node.key;
+    let funcLoc = node.loc;
     let funcName = '';
 
-    if (funcId && funcId.type === 'Identifier' && funcId.name) {
-        funcName = funcId.name;
+    if (funcId && funcId.type === 'Identifier') {
+        funcName = funcId.name || '';
         if (!funcLoc && funcId.loc) funcLoc = funcId.loc;
     }
+
+    if (inWriteList(funcName)) return;
 
     let funcLine = (funcLoc && funcLoc.start) ? funcLoc.start.line + '' : '';
 
@@ -380,4 +411,10 @@ function isEventListenr(object, property, args) {
     if (!isFuncTypeNode(funcNode.type)) return false;
 
     return true;
+}
+
+
+// 白名单方法不trycatch
+function inWriteList(funcName) {
+    return funcName && ['defineProperties', '_defineProperty', '_classCallCheck', '_possibleConstructorReturn', '_inherits', '_objectWithoutProperties', '_createClass'].indexOf(funcName) > -1;
 }

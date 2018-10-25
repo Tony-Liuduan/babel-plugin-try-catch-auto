@@ -2,7 +2,7 @@
 
 * 作者：liuduan
 * 邮箱：liuduan.05.05@163.com
-* 版本：**`2.4.2`**
+* 版本：**`2.4.3`**
 
 ## 介绍
 
@@ -97,5 +97,9 @@ cnpm i -D babel-plugin-try-catch-auto
 1. 对添加try catch的模块增加严格审核，减少不必要的try catch
 2. error.message中增加了`方法名`和`方法行号`起始位置的信息，具体在message结尾以`:`间隔
 3. 补充了属性方法中的错误捕获
+
+### 2.4.3
+1. 修复bug
+2. 增加白名单函数
 
 ---
