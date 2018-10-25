@@ -2,7 +2,7 @@
 
 * 作者：liuduan
 * 邮箱：liuduan.05.05@163.com
-* 版本：**`2.4.1`**
+* 版本：**`2.4.2`**
 
 ## 介绍
 
@@ -13,8 +13,6 @@ _babel插件，js文件经过babel编译时会自动在`function` 内部嵌入`t
 ---
 
 ## 安装
-
-`lm-*` 组件使用 `npm` 进行管理，命名空间统一为 `lm-`，请使用以下命令进行组件安装。
 
 ```
 cnpm i -D babel-plugin-try-catch-auto
@@ -95,5 +93,9 @@ cnpm i -D babel-plugin-try-catch-auto
 ### 2.4.1
 1. 替换函数节点为Function
 
+### 2.4.2
+1. 对添加try catch的模块增加严格审核，减少不必要的try catch
+2. error.message中增加了`方法名`和`方法行号`起始位置的信息，具体在message结尾以`:`间隔
+3. 补充了属性方法中的错误捕获
 
 ---
