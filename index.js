@@ -132,26 +132,38 @@ module.exports = function (babel) {
                 if (parentType === 'ExpressionStatement') return replaceFuncBody(path, astObj);
             },
 
-            // setState 中的错误捕获
+            // setState、eventListenr、自执行 中的错误捕获
             CallExpression(path, _ref = { opts: {} }) {
 
                 if (!path.node) return;
                 if (!path.node.callee) return;
 
                 const calleeProp = path.node.callee.property;
+                const calleeObject = path.node.callee.object;
+
+                if (checkWritePropAndObject(path.parent)) return;
+
+                // 自执行函数
+                if (isFuncTypeNode(path.node.callee.type)) {
+                    return replaceFuncBody(path.get('callee'), astFunc(_ref.opts));
+                }
 
                 if (!calleeProp) return;
 
-                if (!path.parent) return;
+                const args = path.get('arguments');
+                if (!path.node.arguments) return;
 
-                if ((['setState'].indexOf(calleeProp.name) > -1 && path.parent.type === 'ExpressionStatement')) {
+                const l = path.node.arguments.length;
+                if (!l) return;
 
-                    if (!path.node.arguments) return;
+                // eventListenr
+                if (isEventListenr(calleeObject, calleeProp, args)) {
+                    replaceFuncBody(args[1], astFunc(_ref.opts));
+                    return;
+                }
 
-                    const args = path.get('arguments');
-
-                    const l = path.node.arguments.length;
-                    if (!l) return;
+                // setState
+                if (['setState'].indexOf(calleeProp.name) > -1) {
 
                     const funcPath = args[l - 1];
 
@@ -164,6 +176,7 @@ module.exports = function (babel) {
 
                     return replaceFuncBody(funcPath, astFunc(_ref.opts));
                 }
+
             },
 
             // {} 中属性的方法
@@ -192,7 +205,12 @@ module.exports = function (babel) {
                 const { parent } = path;
 
                 if (!parent) return;
+
                 if (parent.type !== 'ExpressionStatement') return;
+
+                if (!path.node) return;
+
+                if (checkWritePropAndObject(path.node)) return;
 
                 const childPath = path.get('right');
 
@@ -207,7 +225,7 @@ module.exports = function (babel) {
                 replaceFuncBody(childPath, astFunc(_ref.opts));
             },
 
-            // Program下定义的方法
+            // Program export export defaul下定义的方法
             FunctionDeclaration(path, _ref = { opts: {} }) {
                 const { parent, node } = path;
 
@@ -266,37 +284,22 @@ module.exports = function (babel) {
 
             },
 
-            // 自执行函数 + addEventListener
-            ExpressionStatement(path, _ref = { opts: {} }) {
+            // return 方法
+            ReturnStatement(path, _ref = { opts: {} }) {
+                const node = path.node;
+                if (!node) return;
 
-                const childPath = path.get('expression');
+                const childPath = path.get('argument');
+
                 if (!childPath) return;
 
                 const childNode = childPath.node;
+
                 if (!childNode) return;
 
-                if (childNode.type !== 'CallExpression') return;
+                if (!isFuncTypeNode(childNode.type)) return;
 
-                const sunPath = childPath.get('callee');
-                if (!sunPath) return;
-
-                const sunNode = sunPath.node;
-                if (!sunNode) return;
-
-                // addEventListener
-                const { object, property } = sunNode;
-                const args = childPath.get('arguments');
-                if (isEventListenr(object, property, args)) {
-
-                    replaceFuncBody(args[1], astFunc(_ref.opts));
-
-                    return;
-                }
-
-                // 自执行函数
-                if (!isFuncTypeNode(sunNode.type)) return;
-
-                replaceFuncBody(sunPath, astFunc(_ref.opts));
+                replaceFuncBody(childPath, astFunc(_ref.opts));
             }
         }
     }
@@ -337,10 +340,23 @@ function replaceFuncBody(path, { capture, captureWithReturn }) {
         if (secondNode && secondNode.type === 'TryStatement') return;
 
         let stopFlag = true;
-        // todo:查看是否方法体中都是方法类型，如果是就不再try catch
+
+        // 查看是否方法体中都是方法类型，如果是就不再try catch
         for (let i = 0; i < len; i++) {
             const currentNode = funcBody[i];
-            if (currentNode && (!isFuncTypeNode(currentNode.type) && currentNode.type !== 'TryStatement')) {
+
+            if (currentNode && currentNode.type === 'ExpressionStatement') {
+                const nextNode = currentNode.expression;
+                if (nextNode && nextNode.type === 'CallExpression' && nextNode.callee) {
+                    const nextNodeCalleeType = nextNode.callee.type;
+                    if (isFuncTypeNode(nextNodeCalleeType) || ['MemberExpression', 'Identifier'].indexOf(nextNodeCalleeType) > -1) {
+                        stopFlag = true;
+                        continue;
+                    }
+                }
+            }
+
+            if (currentNode && (!isFuncTypeNode(currentNode.type) && ['TryStatement', 'ReturnStatement'].indexOf(currentNode.type) === -1)) {
                 stopFlag = false;
                 break;
             }
@@ -392,7 +408,7 @@ function isEventListenr(object, property, args) {
 
     if (!object || !property || !args) return false;
 
-    if (!object.name) return false;
+    if (typeof property !== 'object') return false;
 
     if (['addEventListener', 'removeEventListener'].indexOf(property.name) < 0) return false;
 
@@ -415,6 +431,43 @@ function isEventListenr(object, property, args) {
 
 
 // 白名单方法不trycatch
-function inWriteList(funcName) {
-    return funcName && ['defineProperties', '_defineProperty', '_classCallCheck', '_possibleConstructorReturn', '_inherits', '_objectWithoutProperties', '_createClass'].indexOf(funcName) > -1;
+function inWriteList(params) {
+    return params && ['defineProperties', '_defineProperty', '_classCallCheck', '_possibleConstructorReturn', '_inherits', '_objectWithoutProperties', '_createClass'].indexOf(params) > -1;
+}
+
+function inWirteObject(params) {
+    if (!params) return false;
+
+    if (typeof params !== 'object') return false;
+
+    const { object, property, name } = params;
+
+    if (name) return ['Object', 'Array', 'Function', 'String'].indexOf(name) > -1;
+
+    if (typeof object === 'object' && typeof property === 'object')
+        return (inWirteObject(object) && inWirteProp(property));
+
+    return false;
+}
+
+function inWirteProp(params) {
+    if (!params) return false;
+
+    if (typeof params !== 'object') return false;
+
+    return params.name && ['reduce', 'keys', 'prototype'].indexOf(params.name) > -1;
+}
+
+function checkWritePropAndObject(node) {
+    if (!node) return false;
+
+    const leftNode = node.left;
+
+    if (!leftNode) return false;
+
+    const { object = {}, property = {} } = leftNode;
+
+    if (inWirteObject(object) && inWirteProp(property)) return true;
+
+    return false;
 }
