@@ -1,6 +1,6 @@
 {
   "name": "babel-plugin-try-catch-auto",
-  "version": "2.4.4",
+  "version": "2.4.6",
   "description": "auto wrap try catch for function body",
   "main": "index.js",
   "scripts": {

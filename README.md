@@ -2,7 +2,7 @@
 
 * 作者：liuduan
 * 邮箱：liuduan.05.05@163.com
-* 版本：**`2.4.4`**
+* 版本：**`2.4.6`**
 
 ## 介绍
 
@@ -83,6 +83,37 @@ cnpm i -D babel-plugin-try-catch-auto
 }
 ```
 
+### 3. 配置白名单配置，白名单方法不使用try catch代码块包裹
+```javascript
+// .babelrc文件内配置
+{
+    "presets": [
+        ["env", {
+            "modules": false
+        }],
+        "react",
+        "stage-2"
+    ],
+    "plugins": [
+        // 如果没有引入antd，可忽略 import 插件配置，import插件仅供示例参考
+        [
+            "import",
+            {
+                "libraryName": "antd",
+                "libraryDirectory": "lib",
+                "style": "css"
+            }
+        ],
+        [
+            "try-catch-auto", 
+            {
+                "whiteList": ["example"] // 数组类型，元素为方法名
+            }
+        ]
+    ]
+}
+```
+
 
 ## Changelog
 
@@ -105,5 +136,16 @@ cnpm i -D babel-plugin-try-catch-auto
 
 ### 2.4.4
 1. 优化catch时机，减少不必要的catch
+
+
+
+### 2.4.5
+1. 增加方法名白名单配置
+
+
+
+### 2.4.6
+1. 去掉对方法直接return的处理
+
 
 ---

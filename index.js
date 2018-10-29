@@ -46,7 +46,7 @@ module.exports = function (babel) {
         }
     }`)
 
-    function astFunc({ throwError }) {
+    function astFunc({ throwError, whiteList = [] }) {
 
         let capture = wrapCaptureWithThrow
         let captureWithReturn = wrapCaptureWithReturnWithThrow
@@ -58,7 +58,8 @@ module.exports = function (babel) {
 
         return {
             capture,
-            captureWithReturn
+            captureWithReturn,
+            whiteList
         }
 
     }
@@ -141,7 +142,7 @@ module.exports = function (babel) {
                 const calleeProp = path.node.callee.property;
                 const calleeObject = path.node.callee.object;
 
-                if (checkWritePropAndObject(path.parent)) return;
+                if (checkWhitePropAndObject(path.parent)) return;
 
                 // 自执行函数
                 if (isFuncTypeNode(path.node.callee.type)) {
@@ -210,7 +211,7 @@ module.exports = function (babel) {
 
                 if (!path.node) return;
 
-                if (checkWritePropAndObject(path.node)) return;
+                if (checkWhitePropAndObject(path.node)) return;
 
                 const childPath = path.get('right');
 
@@ -315,55 +316,52 @@ function checkAsyncProp(params) {
     return ['requestAnimationFrame', 'then'].indexOf(params) > -1
 }
 
-function replaceFuncBody(path, { capture, captureWithReturn }) {
+function replaceFuncBody(path, { capture, captureWithReturn, whiteList }) {
     const node = path.node;
     if (!node) return;
+    if (!node.body) return;
+
+    if (node.body.type !== 'BlockStatement') return;
 
     let funcBody = node.body.body;
     let astTemplate = capture;
 
-    if (!funcBody) {
-        funcBody = node.body;
-        if (!funcBody) return;
-        if (isBaseTypeNode(funcBody.type)) return;
 
-        astTemplate = captureWithReturn;
-    } else {
-        const len = funcBody.length;
-        if (!len) return;
+    const len = funcBody.length;
+    if (!len) return;
 
-        // 检测若果如果第一个是try 就不再包裹
-        const firstNode = funcBody[0];
-        if (firstNode && firstNode.type === 'TryStatement') return;
+    // 检测若果如果第一个是try 就不再包裹
+    const firstNode = funcBody[0];
+    if (firstNode && firstNode.type === 'TryStatement') return;
 
-        const secondNode = funcBody[1];
-        if (secondNode && secondNode.type === 'TryStatement') return;
+    const secondNode = funcBody[1];
+    if (secondNode && secondNode.type === 'TryStatement') return;
 
-        let stopFlag = true;
+    let stopFlag = true;
 
-        // 查看是否方法体中都是方法类型，如果是就不再try catch
-        for (let i = 0; i < len; i++) {
-            const currentNode = funcBody[i];
+    // 查看是否方法体中都是方法类型，如果是就不再try catch
+    for (let i = 0; i < len; i++) {
+        const currentNode = funcBody[i];
 
-            if (currentNode && currentNode.type === 'ExpressionStatement') {
-                const nextNode = currentNode.expression;
-                if (nextNode && nextNode.type === 'CallExpression' && nextNode.callee) {
-                    const nextNodeCalleeType = nextNode.callee.type;
-                    if (isFuncTypeNode(nextNodeCalleeType) || ['MemberExpression', 'Identifier'].indexOf(nextNodeCalleeType) > -1) {
-                        stopFlag = true;
-                        continue;
-                    }
+        if (currentNode && currentNode.type === 'ExpressionStatement') {
+            const nextNode = currentNode.expression;
+            if (nextNode && nextNode.type === 'CallExpression' && nextNode.callee) {
+                const nextNodeCalleeType = nextNode.callee.type;
+                if (isFuncTypeNode(nextNodeCalleeType) || ['MemberExpression', 'Identifier'].indexOf(nextNodeCalleeType) > -1) {
+                    stopFlag = true;
+                    continue;
                 }
-            }
-
-            if (currentNode && (!isFuncTypeNode(currentNode.type) && ['TryStatement', 'ReturnStatement'].indexOf(currentNode.type) === -1)) {
-                stopFlag = false;
-                break;
             }
         }
 
-        if (stopFlag) return;
+        if (currentNode && (!isFuncTypeNode(currentNode.type) && ['TryStatement', 'ReturnStatement'].indexOf(currentNode.type) === -1)) {
+            stopFlag = false;
+            break;
+        }
     }
+
+    if (stopFlag) return;
+
 
     const funcErrorVariable = path.scope.generateUidIdentifier('e');
 
@@ -377,7 +375,7 @@ function replaceFuncBody(path, { capture, captureWithReturn }) {
         if (!funcLoc && funcId.loc) funcLoc = funcId.loc;
     }
 
-    if (inWriteList(funcName)) return;
+    if (inWhiteList(funcName, whiteList)) return;
 
     let funcLine = (funcLoc && funcLoc.start) ? funcLoc.start.line + '' : '';
 
@@ -431,11 +429,15 @@ function isEventListenr(object, property, args) {
 
 
 // 白名单方法不trycatch
-function inWriteList(params) {
-    return params && ['defineProperties', '_defineProperty', '_classCallCheck', '_possibleConstructorReturn', '_inherits', '_objectWithoutProperties', '_createClass'].indexOf(params) > -1;
+function inWhiteList(params, whiteList) {
+    let list = ['defineProperties', '_defineProperty', '_classCallCheck', '_possibleConstructorReturn', '_inherits', '_objectWithoutProperties', '_createClass'];
+    if (Object.prototype.toString.call(whiteList) === '[object Array]') {
+        list = list.concat(whiteList);
+    }
+    return params && list.indexOf(params) > -1;
 }
 
-function inWirteObject(params) {
+function inWhiteObject(params) {
     if (!params) return false;
 
     if (typeof params !== 'object') return false;
@@ -445,12 +447,12 @@ function inWirteObject(params) {
     if (name) return ['Object', 'Array', 'Function', 'String'].indexOf(name) > -1;
 
     if (typeof object === 'object' && typeof property === 'object')
-        return (inWirteObject(object) && inWirteProp(property));
+        return (inWhiteObject(object) && inWhiteProp(property));
 
     return false;
 }
 
-function inWirteProp(params) {
+function inWhiteProp(params) {
     if (!params) return false;
 
     if (typeof params !== 'object') return false;
@@ -458,7 +460,7 @@ function inWirteProp(params) {
     return params.name && ['reduce', 'keys', 'prototype'].indexOf(params.name) > -1;
 }
 
-function checkWritePropAndObject(node) {
+function checkWhitePropAndObject(node) {
     if (!node) return false;
 
     const leftNode = node.left;
@@ -467,7 +469,7 @@ function checkWritePropAndObject(node) {
 
     const { object = {}, property = {} } = leftNode;
 
-    if (inWirteObject(object) && inWirteProp(property)) return true;
+    if (inWhiteObject(object) && inWhiteProp(property)) return true;
 
     return false;
 }
